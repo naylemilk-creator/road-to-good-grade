@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>คำนวณเกรดปลายภาค</title>
+  <style>
+    body { font-family: 'Prompt', sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #aaa; padding: 8px; text-align: center; }
+    th { background-color: #f2f2f2; }
+    input[type="number"], select, input[type="text"] { width: 80px; }
+    .result { margin-top: 30px; font-weight: bold; font-size: 1.2em; }
+    button { padding: 10px 20px; margin-top: 10px; font-size: 1em; }
+  </style>
+</head>
+<body>
+
+  <h2> คำนวณคะแนนปลายภาคเพื่อให้ได้เกรดตามเป้าหมาย</h2>
+  <p>กรอกคะแนนระหว่างภาค และ เลือกเกรดเป้าหมายของแต่ละวิชา แล้วกด "คำนวณ"</p>
+
+  <form id="gradeForm">
+    <table>
+      <thead>
+        <tr>
+          <th>วิชา</th>
+          <th>หน่วยกิต</th>
+          <th>คะแนนระหว่างภาค (เต็ม 50)</th>
+          <th>เกรดเป้าหมาย</th>
+          <th>ผลลัพธ์</th>
+        </tr>
+      </thead>
+      <tbody id="subjectsTable"></tbody>
+    </table>
+
+    <button type="button" onclick="calculate()">คำนวณ</button>
+  </form>
+
+  <hr>
+
+  <h3>➕ เพิ่มวิชาอื่นๆ</h3>
+  <p>คุณสามารถเพิ่มวิชาอื่นได้ พร้อมกำหนดหน่วยกิต</p>
+  <input type="text" id="newSubjectName" placeholder="ชื่อวิชา" />
+  <input type="number" id="newSubjectCredit" placeholder="หน่วยกิต" min="0.5" step="0.5" />
+  <button onclick="addSubject()">เพิ่มวิชา</button>
+
+  <div class="result" id="gpaResult"></div>
+
+  <script>
+    const subjects = [
+      { name: "ไทย", credit: 1.0 },
+      { name: "คณิตพื้นฐาน", credit: 1.0 },
+      { name: "วิทยาการคำนวณ", credit: 0.5 },
+      { name: "สังคมศึกษา", credit: 1.0 },
+      { name: "สุขศึกษาและพลศึกษา", credit: 0.5 },
+      { name: "ศิลปะ", credit: 0.5 },
+      { name: "ภาษาอังกฤษ", credit: 1.0 },
+      { name: "คณิตศาสตร์เพิ่มเติม", credit: 1.5 },
+      { name: "ฟิสิกส์", credit: 1.5 },
+      { name: "เคมี", credit: 1.5 },
+      { name: "ชีววิทยา", credit: 1.5 },
+      { name: "การเขียนโปรแกรม", credit: 1.0 },
+      { name: "โลกดาราศาสตร์", credit: 1.0 },
+      { name: "ภาษาอังกฤษเสริมทักษะ", credit: 1.5 }
+    ];
+
+    const gradeThresholds = [
+      { grade: 4.0, totalRequired: 80 },
+      { grade: 3.5, totalRequired: 75 },
+      { grade: 3.0, totalRequired: 70 },
+      { grade: 2.5, totalRequired: 65 },
+      { grade: 2.0, totalRequired: 60 },
+      { grade: 1.0, totalRequired: 50 },
+      { grade: 0.0, totalRequired: 0 }
+    ];
+
+    const tableBody = document.getElementById("subjectsTable");
+
+    function renderTable() {
+      tableBody.innerHTML = "";
+      subjects.forEach((subject, index) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${subject.name}</td>
+          <td>${subject.credit}</td>
+          <td><input type="number" id="score-${index}" min="0" max="50" required></td>
+          <td>
+            <select id="target-${index}">
+              <option value="4.0">4.0</option>
+              <option value="3.5">3.5</option>
+              <option value="3.0">3.0</option>
+              <option value="2.5">2.5</option>
+              <option value="2.0">2.0</option>
+              <option value="1.0">1.0</option>
+            </select>
+          </td>
+          <td id="result-${index}">-</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    function calculate() {
+      let totalCredits = 0;
+      let totalWeightedGrade = 0;
+
+      subjects.forEach((subject, index) => {
+        const input = document.getElementById(`score-${index}`);
+        const select = document.getElementById(`target-${index}`);
+        const resultCell = document.getElementById(`result-${index}`);
+
+        const midterm = parseFloat(input.value);
+        const targetGrade = parseFloat(select.value);
+
+        const threshold = gradeThresholds.find(g => g.grade === targetGrade);
+        if (!threshold || isNaN(midterm) || midterm < 0 || midterm > 50) {
+          resultCell.innerHTML = "❌ ข้อมูลไม่ถูกต้อง";
+          return;
+        }
+
+        const requiredFinal = threshold.totalRequired - midterm;
+
+        // ตรวจสอบว่าเกรดเป้าหมายเป็นไปได้หรือไม่
+        if (requiredFinal > 50) {
+          // หาเกรดสูงสุดที่ทำได้จริง
+          let bestGrade = 0.0;
+          let bestRequired = null;
+          for (const g of gradeThresholds) {
+            const needed = g.totalRequired - midterm;
+            if (needed <= 50) {
+              bestGrade = g.grade;
+              bestRequired = needed > 0 ? needed : 0;
+              break;
+            }
+          }
+          resultCell.innerHTML = `❗ ทำได้สูงสุดเกรด ${bestGrade.toFixed(1)} (ต้องได้ มากสุด ${bestRequired.toFixed(1)} คะแนน)`;
+          totalCredits += subject.credit;
+          totalWeightedGrade += subject.credit * bestGrade;
+        } else {
+          resultCell.innerHTML = `✅ ต้องได้ อย่างน้อย ${requiredFinal.toFixed(1)} คะแนน`;
+          totalCredits += subject.credit;
+          totalWeightedGrade += subject.credit * targetGrade;
+        }
+      });
+
+      const gpa = totalWeightedGrade / totalCredits;
+      document.getElementById("gpaResult").innerHTML =
+        isNaN(gpa)
+          ? ""
+          : `🎓 เกรดเฉลี่ยที่คาดว่าจะได้: <strong>${gpa.toFixed(2)}</strong> (หากทำตามเป้าหมาย)`;
+    }
+
+    function addSubject() {
+      const name = document.getElementById("newSubjectName").value.trim();
+      const credit = parseFloat(document.getElementById("newSubjectCredit").value);
+
+      if (name && !isNaN(credit) && credit > 0) {
+        subjects.push({ name, credit });
+        renderTable();
+        document.getElementById("newSubjectName").value = "";
+        document.getElementById("newSubjectCredit").value = "";
+      } else {
+        alert("กรุณากรอกชื่อวิชาและหน่วยกิตให้ถูกต้อง");
+      }
+    }
+
+    // Initial render
+    renderTable();
+  </script>
+</body>
+</html>
